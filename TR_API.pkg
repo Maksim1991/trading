@@ -1,0 +1,2393 @@
+CREATE OR REPLACE PACKAGE BODY FUND_DB.TR_API
+IS
+
+    CONST_EXT_CODE_ID               VARCHAR2(20)    := 'ID';
+    CONST_COMM_VALUE_MODE_AMOUNT    CONSTANT NUMBER := TR_MAJOR.GET_ID( 'COMM_VALUE_MODE', 'AMOUNT'    );
+    CONST_ACI_CALC_MODE_FROM_RATE   CONSTANT NUMBER := TR_MAJOR.GET_ID( 'ACI_CALC_MODE'  , 'FROM_RATE' );
+    CONST_ACI_CALC_MODE_FROM_SUM    CONSTANT NUMBER := TR_MAJOR.GET_ID( 'ACI_CALC_MODE'  , 'FROM_SUM'  );
+    CONST_ID_ISSUE_FORMS            CONSTANT NUMBER := TR_MAJOR.ID( 'ITEM', 'SEC_ISSUE_FORMS' );
+    CONST_RUDATA_NONDOC_NAME        CONSTANT VARCHAR2(100) := 'Бездокументарная именная';
+    CONST_NONDOC_NAME               CONSTANT VARCHAR2(100) := 'Бездокумент. именная';
+    CONST_RUDATA_DOC_SHARE          CONSTANT VARCHAR2(100) := 'Документарная на предъявителя';
+    CONST_DOC_SHARE                 CONSTANT VARCHAR2(100) := 'Документ. на пред.';
+    CONST_RUDATA_DOC_NAME           CONSTANT VARCHAR2(100) := 'Документарная именная';
+    CONST_DOC_NAME                  CONSTANT VARCHAR2(100) := 'Документ. именная';
+    CONST_QUAL_INV_TRUE             CONSTANT NUMBER        := 1;
+    CONST_QUAL_INV_FALSE            CONSTANT NUMBER        := 0;
+
+
+FUNCTION QQQ                                RETURN VARCHAR2 IS BEGIN RETURN 'QQQWWW';                          END;
+
+--------------------------------------------------------------------------------
+--    TYPE_ROW_DATA:
+--------------------------------------------------------------------------------
+FUNCTION SEC_ASSET                          RETURN VARCHAR2 IS BEGIN RETURN 'SEC_ASSET';                       END;
+FUNCTION SEC_ASSET_CODE_EXCHANGE            RETURN VARCHAR2 IS BEGIN RETURN 'SEC_ASSET_CODE_EXCHANGE';         END;
+FUNCTION SEC_ASSET_COUPON                   RETURN VARCHAR2 IS BEGIN RETURN 'SEC_ASSET_COUPON';                END;
+FUNCTION SEC_ASSET_AMORTIZATION             RETURN VARCHAR2 IS BEGIN RETURN 'SEC_ASSET_AMORTIZATION';          END;
+FUNCTION SEC_ASSET_OFFER                    RETURN VARCHAR2 IS BEGIN RETURN 'SEC_ASSET_OFFER';                 END;
+FUNCTION PARTY_DATA                         RETURN VARCHAR2 IS BEGIN RETURN 'PARTY_DATA';                      END;
+
+
+--------------------------------------------------------------------------------
+--    TYPE_ACTION:
+--------------------------------------------------------------------------------
+FUNCTION ACTION_INSERT                      RETURN VARCHAR2 IS BEGIN RETURN 'INSERT';                          END;
+FUNCTION ACTION_UPDATE                      RETURN VARCHAR2 IS BEGIN RETURN 'UPDATE';                          END;
+FUNCTION ACTION_DELETE                      RETURN VARCHAR2 IS BEGIN RETURN 'DELETE';                          END;
+
+
+--------------------------------------------------------------------------------
+--    TYPE_SEC:
+--------------------------------------------------------------------------------
+FUNCTION SEC_SHARE                          RETURN VARCHAR2 IS BEGIN RETURN 'SHARE';                           END;
+FUNCTION SEC_BOND                           RETURN VARCHAR2 IS BEGIN RETURN 'BOND';                            END;
+FUNCTION SEC_BOND_COUPON                    RETURN VARCHAR2 IS BEGIN RETURN 'BOND_COUPON';                     END;
+
+
+--------------------------------------------------------------------------------
+--    TYPE_FIELD:
+--------------------------------------------------------------------------------
+FUNCTION TYPE_ROW_DATA                      RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_ROW_DATA';                   END; -- Тип данных строки
+FUNCTION TYPE_ACTION                        RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_ACTION';                     END; -- Тип действия, применяемый к данным строки
+FUNCTION MASTER_SYSTEM                      RETURN VARCHAR2 IS BEGIN RETURN 'MASTER_SYSTEM';                   END; -- Внешняя мастер-система, вызывающая FUND_API
+FUNCTION ID_MASTER_SEC                      RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_SEC';                   END; -- Идентификатор ценной бумаги по номенклатуре мастер-системы
+FUNCTION NAME_SHORT                         RETURN VARCHAR2 IS BEGIN RETURN 'NAME_SHORT';                      END; -- Экранная кличка ценной бумаги
+FUNCTION NAME_FULL                          RETURN VARCHAR2 IS BEGIN RETURN 'NAME_FULL';                       END; -- Полное наименование ценной бумаги
+FUNCTION TYPE_SEC                           RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_SEC';                        END; -- Тип ценной бумаги
+FUNCTION ID_SIEBEL_ISSUER                   RETURN VARCHAR2 IS BEGIN RETURN 'ID_SIEBEL_ISSUER';                END; -- Зибель-ключ эмитента
+FUNCTION ID_MASTER_ISSUER                   RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_ISSUER';                END; -- Идентификатор эмитента по номенклатуре мастер-системы
+FUNCTION DATE_ISSUE                         RETURN VARCHAR2 IS BEGIN RETURN 'DATE_ISSUE';                      END; -- Дата эмиссии
+FUNCTION AMOUNT_FACE_VALUE                  RETURN VARCHAR2 IS BEGIN RETURN 'AMOUNT_FACE_VALUE';               END; -- Номинал
+FUNCTION CODE_CCY_FACE_VALUE                RETURN VARCHAR2 IS BEGIN RETURN 'CODE_CCY_FACE_VALUE';             END; -- Код (ЦБ или ISO) валюты номинала
+FUNCTION ID_SIEBEL_DEPOSITARY               RETURN VARCHAR2 IS BEGIN RETURN 'ID_SIEBEL_DEPOSITARY';            END; -- Зибель-ключ депозитария
+FUNCTION ID_MASTER_DEPOSITARY               RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_DEPOSITARY';            END; -- Идентификатор эмитента по номенклатуре мастер-системы
+FUNCTION CODE_ISIN                          RETURN VARCHAR2 IS BEGIN RETURN 'CODE_ISIN';                       END; -- Код ISIN
+FUNCTION DATE_MATURITY                      RETURN VARCHAR2 IS BEGIN RETURN 'DATE_MATURITY';                   END; -- Дата погашения
+FUNCTION CFI_CODE                           RETURN VARCHAR2 IS BEGIN RETURN 'CFI_CODE';                        END; -- Код CFI
+FUNCTION ISSUE_FORM                         RETURN VARCHAR2 IS BEGIN RETURN 'ISSUE_FORM';                      END; -- Форма выпуска
+FUNCTION IF_QUAL_INVEST                     RETURN VARCHAR2 IS BEGIN RETURN 'IF_QUAL_INVEST';                  END; -- Признак квал. инвесторов
+
+
+FUNCTION ID_MASTER_EXCHANGE                 RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_EXCHANGE';              END; -- Идентификатор торговой площадки по номенклатуре мастер-системы
+FUNCTION CODE_SEC                           RETURN VARCHAR2 IS BEGIN RETURN 'CODE_SEC';                        END; -- Код ценной бумаги на торговой площадке
+FUNCTION RATE_COUPON                        RETURN VARCHAR2 IS BEGIN RETURN 'RATE_COUPON';                     END; -- Процентная ставка, действующая в течение купонного периода
+FUNCTION AMOUNT_COUPON                      RETURN VARCHAR2 IS BEGIN RETURN 'AMOUNT_COUPON';                   END; -- Сумма выплат, приходящаяся на одну бумагу
+FUNCTION DATE_PAYMENT                       RETURN VARCHAR2 IS BEGIN RETURN 'DATE_PAYMENT';                    END; -- Дата фактической выплаты денежных средств
+FUNCTION TYPE_PAYMENT                       RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_PAYMENT';                    END; -- Способ выплаты денежных средств
+
+FUNCTION DATE_REDEMPTION                    RETURN VARCHAR2 IS BEGIN RETURN 'DATE_REDEMPTION';                 END; -- Дата погашения
+FUNCTION RATE_AMORTIZATION                  RETURN VARCHAR2 IS BEGIN RETURN 'RATE_AMORTIZATION';               END; -- Величина амортизации в процентах от номинала
+FUNCTION AMOUNT_AMORTIZATION                RETURN VARCHAR2 IS BEGIN RETURN 'AMOUNT_AMORTIZATION';             END; -- Сумма амортизации в абсолютных единицах
+FUNCTION DATE_OFFER                         RETURN VARCHAR2 IS BEGIN RETURN 'DATE_OFFER';                      END; -- Дата оферты
+
+FUNCTION TYPE_SEC_CBRF                      RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_SEC_CBRF';                   END; --     ior_dict_sec.sec_sub_type_id
+FUNCTION ID_MASTER_COUNTRY                  RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_COUNTRY';               END; --     ior_dict_sec.country_id
+FUNCTION DATE_PLACEMENT                     RETURN VARCHAR2 IS BEGIN RETURN 'DATE_PLACEMENT';                  END; --     ior_dict_sec.placing_date
+FUNCTION DATE_START_ACI                     RETURN VARCHAR2 IS BEGIN RETURN 'DATE_START_ACI';                  END; --     ior_dict_sec.aci_value_date
+FUNCTION TYPE_DAY_COUNT_FRACTION            RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_DAY_COUNT_FRACTION';         END; --     ior_dict_sec.aci_tag
+FUNCTION CODE_STATE                         RETURN VARCHAR2 IS BEGIN RETURN 'CODE_STATE';                      END; --     ior_dict_sec.code_registry
+FUNCTION ISSUE_NUMBER                       RETURN VARCHAR2 IS BEGIN RETURN 'ISSUE_NUMBER';                    END; --     ior_dict_sec.issue_number
+FUNCTION IF_FACE_VALUE_INFLATION            RETURN VARCHAR2 IS BEGIN RETURN 'IF_FACE_VALUE_INFLATION';         END; --     ior_dict_sec.if_face_value_inflation_index
+FUNCTION IF_RATE_FLOAT                      RETURN VARCHAR2 IS BEGIN RETURN 'IF_RATE_FLOAT';                   END; --     ior_dict_sec.if_float_rate
+FUNCTION TYPE_CALC_ACI                      RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_CALC_ACI';                   END; --     ior_dict_sec.aci_calc_mode
+FUNCTION CALC_ACI_ACCURACY                  RETURN VARCHAR2 IS BEGIN RETURN 'CALC_ACI_ACCURACY';               END; --     ior_dict_sec.aci_accuracy
+FUNCTION ID_MASTER_BASE_SEC                 RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_BASE_SEC';              END; --     ior_dict_sec.base_asset_id
+FUNCTION TYPE_EXCHANGE_LIST                 RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_EXCHANGE_LIST';              END; --
+FUNCTION IF_NEGOTIABLE                      RETURN VARCHAR2 IS BEGIN RETURN 'IF_NEGOTIABLE';                   END; --     r_sec_circ.circ_mode
+FUNCTION IF_LOMB_LIST                       RETURN VARCHAR2 IS BEGIN RETURN 'IF_LOMB_LIST';                    END; --
+FUNCTION TYPE_GROUP_RISK                    RETURN VARCHAR2 IS BEGIN RETURN 'TYPE_GROUP_RISK';                 END; --
+FUNCTION DATE_REGISTER_CLOSE                RETURN VARCHAR2 IS BEGIN RETURN 'DATE_REGISTER_CLOSE';             END; --     r_dict_sec_coupon.closure_register_date
+
+FUNCTION ID_MASTER_PARTY                    RETURN VARCHAR2 IS BEGIN RETURN 'ID_MASTER_PARTY';                 END; -- Идентификатор эмитента
+FUNCTION PARTY_NAME                         RETURN VARCHAR2 IS BEGIN RETURN 'PARTY_NAME';                      END; -- Субъект
+FUNCTION PARTY_NAME_NRD                     RETURN VARCHAR2 IS BEGIN RETURN 'PARTY_NAME_NRD';                  END; -- Сокращённое наименование эмитента (рус)
+FUNCTION PARTY_FULL_NAME                    RETURN VARCHAR2 IS BEGIN RETURN 'PARTY_FULL_NAME';                 END; -- Полное наименование эмитента (рус)
+FUNCTION ENGLISH_PARTY_NAME                 RETURN VARCHAR2 IS BEGIN RETURN 'ENGLISH_PARTY_NAME';              END; -- Сокращённое наименование эмитента (англ)
+FUNCTION INN                                RETURN VARCHAR2 IS BEGIN RETURN 'INN';                             END; -- Код ИНН
+FUNCTION OKPO                               RETURN VARCHAR2 IS BEGIN RETURN 'OKPO';                            END; -- Код ОКПО
+FUNCTION OGRN                               RETURN VARCHAR2 IS BEGIN RETURN 'OGRN';                            END; -- Код ОГРН
+FUNCTION KPP                                RETURN VARCHAR2 IS BEGIN RETURN 'KPP';                             END; -- Код КПП
+FUNCTION OKATO                              RETURN VARCHAR2 IS BEGIN RETURN 'OKATO';                           END; -- Код ОКАТО
+FUNCTION LEGAL_ADDRESS                      RETURN VARCHAR2 IS BEGIN RETURN 'LEGAL_ADDRESS';                   END; -- Юридический адрес
+FUNCTION TELEPHONE                          RETURN VARCHAR2 IS BEGIN RETURN 'TELEPHONE';                       END; -- Телефон
+FUNCTION CREDIT_CMP                         RETURN VARCHAR2 IS BEGIN RETURN 'CREDIT_CMP';                      END; -- Кредитная организация
+FUNCTION IS_BANK_4_NON_RESIDENT             RETURN VARCHAR2 IS BEGIN RETURN 'IS_BANK_4_NON_RESIDENT';          END; -- Банк для нерезидентов
+FUNCTION SECTOR                             RETURN VARCHAR2 IS BEGIN RETURN 'SECTOR';                          END; -- SECTOR
+FUNCTION TIN                                RETURN VARCHAR2 IS BEGIN RETURN 'TIN';                             END; -- TIN
+FUNCTION COUNTRY_ID                         RETURN VARCHAR2 IS BEGIN RETURN 'COUNTRY_ID';                      END; -- COUNTRY_ID
+FUNCTION BIC_SWIFT                          RETURN VARCHAR2 IS BEGIN RETURN 'BIC_SWIFT';                       END; -- BIC_SWIFT
+FUNCTION LEI                                RETURN VARCHAR2 IS BEGIN RETURN 'LEI';                             END; -- LEI
+FUNCTION OKVED                              RETURN VARCHAR2 IS BEGIN RETURN 'OKVED';                           END; -- OKVED
+FUNCTION LOCAL_BIC                          RETURN VARCHAR2 IS BEGIN RETURN 'LOCAL_BIC';                       END; -- LOCAL_BIC
+FUNCTION STATE_REG_NUM                      RETURN VARCHAR2 IS BEGIN RETURN 'STATE_REG_NUM';                   END; -- STATE_REG_NUM
+
+
+--------------------------------------------------------
+-- TYPE_ACI_TAG:
+--------------------------------------------------------
+FUNCTION ACI_TAG_A                          RETURN VARCHAR2 IS BEGIN RETURN 'A';                               END;  -- A: 30/360
+FUNCTION ACI_TAG_B                          RETURN VARCHAR2 IS BEGIN RETURN 'B';                               END;  -- B: 28-31/360
+FUNCTION ACI_TAG_C                          RETURN VARCHAR2 IS BEGIN RETURN 'C';                               END;  -- C: 28-31/365-366
+FUNCTION ACI_TAG_D                          RETURN VARCHAR2 IS BEGIN RETURN 'D';                               END;  -- D: 30/365-366
+FUNCTION ACI_TAG_E                          RETURN VARCHAR2 IS BEGIN RETURN 'E';                               END;  -- E: 28-31/365
+FUNCTION ACI_TAG_F                          RETURN VARCHAR2 IS BEGIN RETURN 'F';                               END;  -- F: 30/365
+FUNCTION ACI_TAG_H                          RETURN VARCHAR2 IS BEGIN RETURN 'H';                               END;  -- H: 30/360
+FUNCTION ACI_TAG_I                          RETURN VARCHAR2 IS BEGIN RETURN 'I';                               END;  -- I: 30E/360
+FUNCTION ACI_TAG_J                          RETURN VARCHAR2 IS BEGIN RETURN 'J';                               END;  -- J: 28-31/365-366
+FUNCTION ACI_TAG_K                          RETURN VARCHAR2 IS BEGIN RETURN 'K';                               END;  -- : 28-31/365(366)
+FUNCTION ACI_TAG_L                          RETURN VARCHAR2 IS BEGIN RETURN 'L';                               END;  -- : 30/365(366)
+FUNCTION ACI_TAG_ACT                        RETURN VARCHAR2 IS BEGIN RETURN 'ACT';                             END;  -- ACT/ACT
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION BOOL_TRUE                          RETURN VARCHAR2 IS BEGIN RETURN '1';                               END;
+FUNCTION BOOL_FALSE                         RETURN VARCHAR2 IS BEGIN RETURN '0';                               END;
+
+
+--------------------------------------------------------------------------------
+-- TYPE_ACI_CALC:
+--------------------------------------------------------------------------------
+FUNCTION ACI_CALC_AMOUNT                    RETURN VARCHAR2 IS BEGIN RETURN 'AMOUNT';                          END;
+FUNCTION ACI_CALC_RATE                      RETURN VARCHAR2 IS BEGIN RETURN 'RATE';                            END;
+
+
+--------------------------------------------------------------------------------
+-- TYPE_EXCH_SEC_LIST_TYPE:
+--------------------------------------------------------------------------------
+FUNCTION EXCH_SEC_LIST_TYPE_1L              RETURN VARCHAR2 IS BEGIN RETURN '1';                               END;
+FUNCTION EXCH_SEC_LIST_TYPE_2L              RETURN VARCHAR2 IS BEGIN RETURN '2';                               END;
+FUNCTION EXCH_SEC_LIST_TYPE_3L              RETURN VARCHAR2 IS BEGIN RETURN '3';                               END;
+FUNCTION EXCH_SEC_LIST_TYPE_NO_TENDERS      RETURN VARCHAR2 IS BEGIN RETURN '0';                               END;
+
+
+--------------------------------------------------------------------------------
+-- TYPE_SEC_GROUP_RISK
+--------------------------------------------------------------------------------
+FUNCTION SEC_GROUP_RISK_I                   RETURN VARCHAR2 IS BEGIN RETURN 'I';                               END;
+FUNCTION SEC_GROUP_RISK_II                  RETURN VARCHAR2 IS BEGIN RETURN 'II';                              END;
+
+
+--------------------------------------------------------------------------------
+-- TYPE_PAYMENT
+--------------------------------------------------------------------------------
+FUNCTION TYPE_PAYMENT_NOSTRO                RETURN VARCHAR2 IS BEGIN RETURN 'NOSTRO';                          END;
+FUNCTION TYPE_PAYMENT_EXCHANGE              RETURN VARCHAR2 IS BEGIN RETURN 'EXCHANGE';                        END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_ID_4_EXT_SYSTEM
+    ( i_code_ext_system  VARCHAR2
+    )
+RETURN VARCHAR2
+IS
+   v_res VARCHAR2(20);
+
+BEGIN
+    for rec
+     in ( select code_external_system
+            from V_TR_TYPE_EXTERNAL_SYSTEM  EXT_SYS
+           where EXT_SYS.if_artefact = TR_GET.BOOL_TRUE
+             and TR_GET.ARTEFACT( EXT_SYS.code_external_system ) = i_code_ext_system
+     )
+    loop
+        v_res := rec.code_external_system;
+
+    end loop;
+
+    RETURN v_res;
+
+END GET_ID_4_EXT_SYSTEM;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_SEC_ID_4EXT_CODE
+    ( i_ext_code         VARCHAR2
+    , i_id_ext_sys       VARCHAR2
+    )
+RETURN   NUMBER
+IS
+BEGIN
+    RETURN P_TF_DICT_EXT_CODE.GET_DATA_4EXT_CODE
+                ( i_ext_code       => i_ext_code
+                , i_ext_system_id  => i_id_ext_sys
+                , i_type_ext_code  => CONST_EXT_CODE_ID
+                , i_type_dict      => P_TF_GET.DICT_SEC
+                ).dict_id;
+
+END;
+
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_PARTY_ID_4EXT_CODE
+    ( i_ext_code         VARCHAR2
+    , i_id_ext_sys       VARCHAR2
+    )
+RETURN   NUMBER
+IS
+BEGIN
+    RETURN P_TF_DICT_EXT_CODE.GET_DATA_4EXT_CODE
+                ( i_ext_code       => i_ext_code
+                , i_ext_system_id  => i_id_ext_sys
+                , i_type_ext_code  => CONST_EXT_CODE_ID
+                , i_type_dict      => P_TF_GET.DICT_PARTY
+                ).dict_id;
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_PARTY_ID_4_FIELD_CHAR
+    ( i_ext_code         VARCHAR2
+    , i_id_ext_sys       VARCHAR2
+    )
+RETURN   NUMBER
+IS
+BEGIN
+    RETURN P_TF_DICT_EXT_CODE.GET_DATA_4EXT_CODE
+                ( i_ext_code       => i_ext_code
+                , i_ext_system_id  => i_id_ext_sys
+                , i_type_ext_code  => CONST_EXT_CODE_ID
+                , i_type_dict      => P_TF_GET.DICT_PARTY
+                ).dict_id;
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_TRADE_PLACE_ID
+    ( i_ext_code         VARCHAR2
+    , i_id_ext_sys       VARCHAR2
+    )
+RETURN   NUMBER
+IS
+BEGIN
+    RETURN P_TF_DICT_EXT_CODE.GET_DATA_4EXT_CODE
+                ( i_ext_code       => i_ext_code
+                , i_ext_system_id  => i_id_ext_sys
+                , i_type_ext_code  => CONST_EXT_CODE_ID
+                , i_type_dict      => P_TF_GET.DICT_PARTY
+                ).dict_id;
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_COUNTRY_ID_4EXT_CODE
+    ( i_ext_code         VARCHAR2
+    , i_id_ext_sys       VARCHAR2
+    )
+RETURN   NUMBER
+IS
+BEGIN
+    RETURN P_TF_DICT_EXT_CODE.GET_DATA_4EXT_CODE
+                ( i_ext_code       => i_ext_code
+                , i_ext_system_id  => i_id_ext_sys
+                , i_type_ext_code  => CONST_EXT_CODE_ID
+                , i_type_dict      => P_TF_GET.DICT_COUNTRY
+                ).dict_id;
+
+END GET_COUNTRY_ID_4EXT_CODE;
+
+
+--------------------------------------------------------------------------------
+--    Пробить ext_code
+--------------------------------------------------------------------------------
+PROCEDURE INSERT_EXT_CODE
+    ( i_dict_id          NUMBER
+    , i_ext_code         VARCHAR2
+    , i_id_ext_sys       VARCHAR2
+    )
+IS
+    r_ext_code  V_TF_DICT_EXT_CODE%rowtype;
+
+BEGIN
+    r_ext_code.type_dict      := P_TF_GET_DICT.DATA(i_dict_id).type_dict;
+    r_ext_code.dict_id        := i_dict_id;
+    r_ext_code.ext_system_id  := i_id_ext_sys;
+    r_ext_code.type_ext_code  := CONST_EXT_CODE_ID;
+    r_ext_code.ext_code       := i_ext_code;
+
+    P_TF_DICT_EXT_CODE.DATA_UPD ( r_ext_code );
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION F_CHAR2NUMBER
+    ( i_char_value       VARCHAR2
+    )
+RETURN NUMBER
+IS
+    v_char_value VARCHAR2(255) := i_char_value;
+
+BEGIN
+    TR_STANDARD.PROC_REG( 'v_char_value = ' || v_char_value );
+    v_char_value := replace (v_char_value, ',', '.');
+
+
+
+    RETURN to_number
+               ( v_char_value
+               , 'FM99999999999999999990.99999999999999999999'
+               ) ;
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION F_CHAR2DATE
+    ( i_char_value       VARCHAR2
+    )
+RETURN DATE
+IS
+    v_char_value         VARCHAR2(255) := i_char_value;
+
+BEGIN
+    RETURN to_date(v_char_value, 'DD.MM.YYYY');
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_FIELD_CHAR
+    ( i_type_field       VARCHAR2
+    , i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+RETURN VARCHAR2
+IS
+    v_result VARCHAR2(255);
+
+BEGIN
+    for rec
+     in ( select value_field
+            from TR_API_DATA_SET
+           where -- audsid      = P_TF_GET.SESSIONID and
+                 id_data_set = i_id_data_set
+             and id_row      = i_id_row
+             and type_field  = i_type_field
+             )
+    loop
+        v_result := rec.value_field;
+
+    end loop;
+
+    RETURN v_result;
+
+END GET_FIELD_CHAR;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_FIELD_NUM
+    ( i_type_field       VARCHAR2
+    , i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+RETURN NUMBER
+IS
+BEGIN
+    RETURN  F_CHAR2NUMBER
+                ( GET_FIELD_CHAR
+                      ( i_type_field  => i_type_field
+                      , i_id_data_set => i_id_data_set
+                      , i_id_row      => i_id_row
+                      )
+                ) ;
+
+END GET_FIELD_NUM;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_FIELD_DATE
+    ( i_type_field       VARCHAR2
+    , i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+RETURN DATE
+IS
+BEGIN
+    RETURN  F_CHAR2DATE
+                ( GET_FIELD_CHAR
+                      ( i_type_field  => i_type_field
+                      , i_id_data_set => i_id_data_set
+                      , i_id_row      => i_id_row
+                      )
+                ) ;
+
+END GET_FIELD_DATE;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION GET_FIELD_BOOL
+    ( i_type_field       VARCHAR2
+    , i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+RETURN   NUMBER
+IS
+    v_string  VARCHAR2( 255 );
+    v_result  NUMBER;
+
+BEGIN
+    v_string := GET_FIELD_CHAR
+                      ( i_type_field  => i_type_field
+                      , i_id_data_set => i_id_data_set
+                      , i_id_row      => i_id_row
+                      ) ;
+
+    if    v_string = BOOL_TRUE
+    then
+        v_result := TR_GET.BOOL_TRUE;
+
+    elsif v_string = BOOL_FALSE
+    then
+        v_result := TR_GET.BOOL_FALSE;
+
+    end if;
+
+    RETURN v_result;
+
+END GET_FIELD_BOOL;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+PROCEDURE P_GET_INIT
+    ( i_id_data_set       VARCHAR2
+    , i_id_row            VARCHAR2
+    , o_type_action   out VARCHAR2
+    , o_id_ext_system out VARCHAR2
+    )
+IS
+    v_code VARCHAR2(1000);
+
+BEGIN
+    v_code  := GET_FIELD_CHAR
+                   ( i_type_field  => MASTER_SYSTEM
+                   , i_id_data_set => i_id_data_set
+                   , i_id_row      => i_id_row
+                   ) ;
+
+    o_type_action        := GET_FIELD_CHAR
+                                 ( i_type_field  => TYPE_ACTION
+                                 , i_id_data_set => i_id_data_set
+                                 , i_id_row      => i_id_row
+                                 ) ;
+
+    o_id_ext_system      := GET_ID_4_EXT_SYSTEM( v_code );
+
+    if o_id_ext_system is null
+    then
+        TR_ERROR.SYS_RAISE_ERROR('Неизвестный идентификатор внешней системы '||TR_LIB_STRING.QUOTE( v_code )  );
+
+    end if;
+
+END;
+
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+FUNCTION F_GET_SEC_RECORD
+    ( i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    , i_id_ext_system    VARCHAR2
+    )
+RETURN   V_TR_DICT_SEC%ROWTYPE
+IS
+    r_sec  V_TR_DICT_SEC%ROWTYPE;
+    v_code VARCHAR2(1000);
+
+BEGIN
+    v_code := GET_FIELD_CHAR
+                  ( i_type_field  => ID_MASTER_SEC
+                  , i_id_data_set => i_id_data_set
+                  , i_id_row      => i_id_row
+                  ) ;
+
+    r_sec    := TR_GET_DICT_SEC.SEC_RECORD
+                    (  GET_SEC_ID_4EXT_CODE
+                            ( i_ext_code   => v_code
+                            , i_id_ext_sys => i_id_ext_system
+                            )
+                    ) ;
+
+    if r_sec.id is null
+    then
+        TR_ERROR.SYS_RAISE_ERROR('Не найдена бумага с кодом '||TR_LIB_STRING.QUOTE( v_code ));
+
+    end if;
+
+    RETURN r_sec;
+
+END;
+
+
+--------------------------------------------------------------------------------
+-- EXEC
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+PROCEDURE EXEC_SEC_ASSET
+     ( i_id_data_set     VARCHAR2
+     , i_id_row          VARCHAR2
+     )
+IS
+    v_type_action        VARCHAR2(50);
+    v_id_ext_system      VARCHAR2(20);
+    v_date_issue         DATE;
+    v_date_placement     DATE;
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    FUNCTION F_GET_FIELD_CHAR
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   VARCHAR2
+    IS
+    BEGIN
+        RETURN GET_FIELD_CHAR
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    FUNCTION F_GET_FIELD_NUM
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   NUMBER
+    IS
+    BEGIN
+        RETURN GET_FIELD_NUM
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    FUNCTION F_GET_FIELD_DATE
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   DATE
+    IS
+    BEGIN
+        RETURN GET_FIELD_DATE
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    FUNCTION F_GET_SEC_SUB_TYPE
+        ( i_sec_type  NUMBER
+        , i_ref_id    VARCHAR2
+        )
+    RETURN   NUMBER
+    IS
+        v_sec_sub_type_id  NUMBER;
+
+    BEGIN
+        for rec
+        in ( select id
+               from V_TR_DICT_SEC_SUB_TYPE   SEC_SUB_TYPE
+              where SEC_SUB_TYPE.sec_type = i_sec_type
+                and SEC_SUB_TYPE.ref_id   = i_ref_id
+              order
+                 by sec_sub_type
+           )
+        loop
+            v_sec_sub_type_id := rec.id;
+
+            exit;
+
+        end loop;
+
+        RETURN v_sec_sub_type_id;
+
+    END F_GET_SEC_SUB_TYPE;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    PROCEDURE P_FIELD_INIT
+        ( ior_dict_sec in out V_TR_DICT_SEC%rowtype
+        )
+    IS
+
+        v_type_sec       VARCHAR2(255) := F_GET_FIELD_CHAR
+                                              ( TYPE_SEC
+                                              ) ;
+
+
+        --------------------------------------------------------------------------------
+        --
+        --------------------------------------------------------------------------------
+        FUNCTION F_GET_ID_4_RUDATA_ISSUE_FORM
+            ( i_issue_form_mnemo VARCHAR2
+            )
+        RETURN NUMBER
+        IS
+            v_res   NUMBER;
+            v_label VARCHAR2(100);
+
+        BEGIN
+            case
+            when i_issue_form_mnemo = CONST_RUDATA_NONDOC_NAME
+            then
+                v_label := CONST_NONDOC_NAME;
+
+            when i_issue_form_mnemo = CONST_RUDATA_DOC_SHARE
+            then
+                v_label := CONST_DOC_SHARE;
+
+            when i_issue_form_mnemo = CONST_RUDATA_DOC_NAME
+            then
+                v_label := CONST_DOC_NAME;
+            else
+                v_label := null;
+
+            end case;
+
+            for rec
+            in ( select *
+                   from V_TR_ITEM_SOURCE_CHOICE
+                  where item_id = CONST_ID_ISSUE_FORMS
+                    and label = v_label
+               )
+            loop
+                v_res := rec.item_value;
+
+            end loop;
+
+            RETURN v_res;
+
+        END;
+
+
+    BEGIN
+        ior_dict_sec.sec      := F_GET_FIELD_CHAR
+                                     ( NAME_SHORT
+                                     ) ;
+
+        ior_dict_sec.sec_name := F_GET_FIELD_CHAR
+                                     ( NAME_FULL
+                                     ) ;
+
+        if v_type_sec = SEC_SHARE
+        then
+            ior_dict_sec.sec_type := P_TF_GET.SEC_SHARES;
+
+        elsif v_type_sec = SEC_BOND
+        then
+            ior_dict_sec.sec_type := P_TF_GET.SEC_BILLS;
+
+        elsif v_type_sec = SEC_BOND_COUPON
+        then
+            ior_dict_sec.sec_type := P_TF_GET.SEC_BONDS;
+
+        else
+            TR_ERROR.SYS_RAISE_ERROR('Не определен тип ценной бумаги "TYPE_SEC" = '||TR_LIB_STRING.QUOTE(v_type_sec));
+
+        end if;
+
+        P_TR_DICT_SEC.DATA_REG(ior_sec => ior_dict_sec);
+
+        ior_dict_sec.sec_sub_type_id   := F_GET_SEC_SUB_TYPE
+                                              ( ior_dict_sec.sec_type
+                                              , F_GET_FIELD_CHAR( TYPE_SEC_CBRF )
+                                              );
+
+        ior_dict_sec.issuer_id         := GET_PARTY_ID_4EXT_CODE
+                                            ( F_GET_FIELD_CHAR( ID_MASTER_ISSUER )
+                                            , v_id_ext_system
+                                            ) ;
+
+        v_date_issue                   := F_GET_FIELD_DATE ( DATE_ISSUE );
+        v_date_placement               := F_GET_FIELD_DATE ( DATE_PLACEMENT );
+        ior_dict_sec.issue_date        := nvl( v_date_issue
+                                             , v_date_placement
+                                             ) ;
+
+        ior_dict_sec.placing_date      := nvl( v_date_placement
+                                             , ior_dict_sec.issue_date
+                                             ) ;                                         -- ior_dict_sec.issue_date
+
+        ior_dict_sec.cfi               := F_GET_FIELD_CHAR( CFI_CODE   );
+        ior_dict_sec.issue_type        := F_GET_ID_4_RUDATA_ISSUE_FORM
+                                              ( F_GET_FIELD_CHAR
+                                                    ( ISSUE_FORM
+                                                    )
+                                              );
+
+        ior_dict_sec.face_value_amount := F_GET_FIELD_NUM( AMOUNT_FACE_VALUE );
+
+        ior_dict_sec.face_value_ccy_id := P_TF_DICT_CCY.FIND_CCY_ID
+                                              ( F_GET_FIELD_CHAR( CODE_CCY_FACE_VALUE )
+                                              ) ;
+
+        ior_dict_sec.code_isin         := F_GET_FIELD_CHAR( CODE_ISIN ) ;
+
+        ior_dict_sec.depositary_id := GET_PARTY_ID_4EXT_CODE
+                                                ( F_GET_FIELD_CHAR( ID_MASTER_DEPOSITARY )
+                                                , v_id_ext_system
+                                                ) ;
+
+        if v_type_sec
+        in ( SEC_BOND
+           , SEC_BOND_COUPON
+           )
+        then
+            if  v_type_sec = SEC_BOND_COUPON
+            then
+                declare
+                    v_aci_calc_mode  VARCHAR2( 255 ) := F_GET_FIELD_CHAR
+                                                            ( TYPE_CALC_ACI
+                                                            ) ;
+
+                begin
+                    if    v_aci_calc_mode = ACI_CALC_AMOUNT
+                    then
+                        ior_dict_sec.aci_calc_mode := CONST_ACI_CALC_MODE_FROM_SUM;
+
+                    elsif v_aci_calc_mode = ACI_CALC_RATE
+                    then
+                        ior_dict_sec.aci_calc_mode := CONST_ACI_CALC_MODE_FROM_RATE;
+
+                    end if;
+
+                end;
+
+                ior_dict_sec.aci_accuracy   := F_GET_FIELD_NUM( CALC_ACI_ACCURACY );
+                ior_dict_sec.aci_accuracy   := nvl ( ior_dict_sec.aci_accuracy, 2 );
+                ior_dict_sec.aci_value_date := ior_dict_sec.issue_date;
+
+            end if;
+
+            ior_dict_sec.maturity_date := F_GET_FIELD_DATE( DATE_MATURITY );
+            ior_dict_sec.if_face_value_inflation_index := GET_FIELD_BOOL
+                                                              ( i_type_field  => IF_FACE_VALUE_INFLATION
+                                                              , i_id_data_set => i_id_data_set
+                                                              , i_id_row      => i_id_row
+                                                              ) ;
+            if   v_type_sec = SEC_BOND_COUPON
+            then
+                if  ior_dict_sec.if_face_value_inflation_index = TR_GET.BOOL_TRUE
+                then
+                    ior_dict_sec.aci_calc_mode     := CONST_ACI_CALC_MODE_FROM_RATE;
+                    ior_dict_sec.tf_def_aci_amount := null;
+
+                end if;
+
+            end if;
+
+        end if;
+
+        if ior_dict_sec.sec_type = P_TF_GET.SEC_BONDS
+        then
+            ior_dict_sec.aci_value_date := F_GET_FIELD_DATE( DATE_START_ACI );
+            ior_dict_sec.if_float_rate  := GET_FIELD_BOOL
+                                                     ( i_type_field  => IF_RATE_FLOAT
+                                                     , i_id_data_set => i_id_data_set
+                                                     , i_id_row      => i_id_row
+                                                     ) ;
+
+            declare
+                v_aci_tag  VARCHAR2( 255 ) := F_GET_FIELD_CHAR
+                                                  ( TYPE_DAY_COUNT_FRACTION
+                                                  ) ;
+
+            begin
+                if    v_aci_tag = ACI_TAG_A
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_A;
+
+                elsif v_aci_tag = ACI_TAG_B
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_B;
+
+                elsif v_aci_tag = ACI_TAG_C
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_C;
+
+                elsif v_aci_tag = ACI_TAG_D
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_D;
+
+                elsif v_aci_tag = ACI_TAG_E
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_E;
+
+                elsif v_aci_tag = ACI_TAG_F
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_F;
+
+                elsif v_aci_tag = ACI_TAG_H
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_H;
+
+                elsif v_aci_tag = ACI_TAG_I
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_I;
+
+                elsif v_aci_tag = ACI_TAG_J
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_J;
+
+                elsif v_aci_tag = ACI_TAG_K
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_K;
+
+                elsif v_aci_tag = ACI_TAG_L
+                then
+                    ior_dict_sec.aci_tag := P_TF_GET.DAY_COUNT_L;
+
+                elsif v_aci_tag = ACI_TAG_ACT
+                then
+                    ior_dict_sec.aci_tag      := P_TF_GET.DAY_COUNT_ACI_A;
+                    ior_dict_sec.tf_frequency := 1;
+
+                end if;
+
+            end;
+
+            ior_dict_sec.tf_aci_period_type := P_TF_GET.COUPON_LENGTH_DAY;
+            ior_dict_sec.tf_aci_period := ior_dict_sec.maturity_date - ior_dict_sec.aci_value_date;
+
+        end if;
+
+        ior_dict_sec.country_id        := GET_COUNTRY_ID_4EXT_CODE
+                                              ( F_GET_FIELD_CHAR
+                                                    ( ID_MASTER_COUNTRY
+                                                    )
+                                              , v_id_ext_system
+                                              );
+
+        ior_dict_sec.code_registry     := F_GET_FIELD_CHAR
+                                              ( CODE_STATE
+                                              );
+        ior_dict_sec.issue_number      := F_GET_FIELD_CHAR
+                                              ( ISSUE_NUMBER
+                                              );
+
+		declare
+            v_base_asset_code  VARCHAR(1000);
+
+        begin
+            v_base_asset_code := F_GET_FIELD_CHAR
+                                    ( ID_MASTER_BASE_SEC
+                                    ) ;
+
+            if not v_base_asset_code is null
+            then
+                ior_dict_sec.base_asset_id     := GET_SEC_ID_4EXT_CODE
+                                                    ( v_base_asset_code
+                                                    , v_id_ext_system
+                                                    ) ;
+
+                TR_ERROR.SYS_RAISE_ERROR( 'Не удалось найти базовый актив по коду '||TR_LIB_STRING.QUOTE( v_base_asset_code ) ) ;
+
+            end if;
+
+        end;
+
+    END P_FIELD_INIT;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    FUNCTION F_GET_SEC_EXCH_LIST
+        ( i_sec_exch_list  VARCHAR2
+        )
+    RETURN   NUMBER
+    IS
+        v_sec_exch_list  NUMBER;
+
+    BEGIN
+        if    i_sec_exch_list = EXCH_SEC_LIST_TYPE_1L
+        then
+            v_sec_exch_list := TR_GET.EXCH_SEC_LIST_TYPE_1L;
+
+        elsif i_sec_exch_list = EXCH_SEC_LIST_TYPE_2L
+        then
+            v_sec_exch_list := TR_GET.EXCH_SEC_LIST_TYPE_2L;
+
+        elsif i_sec_exch_list = EXCH_SEC_LIST_TYPE_3L
+        then
+            v_sec_exch_list := TR_GET.EXCH_SEC_LIST_TYPE_3L;
+
+        elsif i_sec_exch_list = EXCH_SEC_LIST_TYPE_NO_TENDERS
+        then
+            v_sec_exch_list := TR_GET.EXCH_SEC_LIST_TYPE_NO_TENDERS;
+
+        end if;
+
+        RETURN v_sec_exch_list;
+
+    END F_GET_SEC_EXCH_LIST;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    FUNCTION F_GET_SEC_GROUP_RISK
+        ( i_sec_group_risk  VARCHAR2
+        )
+    RETURN   NUMBER
+    IS
+        v_sec_group_risk  NUMBER;
+
+    BEGIN
+        if    i_sec_group_risk = SEC_GROUP_RISK_I
+        then
+            v_sec_group_risk := TR_GET.BOOL_TRUE;
+
+        elsif i_sec_group_risk = SEC_GROUP_RISK_II
+        then
+            v_sec_group_risk := TR_GET.BOOL_FALSE;
+
+        end if;
+
+        RETURN v_sec_group_risk;
+
+    END F_GET_SEC_GROUP_RISK;
+
+
+    --------------------------------------------------------------------------------
+    --
+    --------------------------------------------------------------------------------
+    PROCEDURE P_INS_OR_UPD_PROPERTIES
+        ( ir_dict_sec  V_TR_DICT_SEC%rowtype
+        )
+    IS
+    BEGIN
+        declare
+            r_sec_exlst     V_TR_DICT_SEC_EXCH_LIST%rowtype;
+            v_sec_exch_list NUMBER := F_GET_SEC_EXCH_LIST
+                                          ( F_GET_FIELD_CHAR
+                                                ( TYPE_EXCHANGE_LIST
+                                                )
+                                          );
+
+        begin
+
+            if v_sec_exch_list is not null
+            then
+                begin
+                    select *
+                      into r_sec_exlst
+                      from V_TR_DICT_SEC_EXCH_LIST
+                     where sec_id    = ir_dict_sec.id
+                       and from_date = ir_dict_sec.issue_date;
+
+                    r_sec_exlst.exch_list := v_sec_exch_list;
+
+                    TR_SDEF_SEC.UPDATE_SEC_EXCH_LIST
+                        ( ir_sec_exlst  => r_sec_exlst
+                        , i_sec_name    => ir_dict_sec.sec
+                        ) ;
+
+                exception
+                    when NO_DATA_FOUND
+                    then
+                        r_sec_exlst.sec_id    := ir_dict_sec.id;
+                        r_sec_exlst.from_date := ir_dict_sec.issue_date;
+                        r_sec_exlst.exch_list := v_sec_exch_list;
+
+                        TR_SDEF_SEC.INSERT_SEC_EXCH_LIST
+                            ( ior_sec_exlst => r_sec_exlst
+                            , i_sec_name    => ir_dict_sec.sec
+                            ) ;
+
+                end;
+
+            end if;
+
+        end;
+
+        declare
+            r_sec_circ       V_TR_DICT_SEC_CIRC%rowtype;
+            v_sec_circ_mode  NUMBER := GET_FIELD_BOOL
+                                                 ( i_type_field  => IF_NEGOTIABLE
+                                                 , i_id_data_set => i_id_data_set
+                                                 , i_id_row      => i_id_row
+                                                 ) ;
+
+        begin
+            begin
+                select *
+                  into r_sec_circ
+                  from V_TR_DICT_SEC_CIRC
+                 where sec_id    = ir_dict_sec.id
+                   and from_date = nvl( ir_dict_sec.placing_date, ir_dict_sec.issue_date );
+
+                r_sec_circ.circ_mode := v_sec_circ_mode;
+
+                TR_SDEF_SEC.UPDATE_SEC_CIRC
+                    ( ir_sec_circ => r_sec_circ
+                    );
+
+            exception
+                when NO_DATA_FOUND
+                then
+                    r_sec_circ.sec_id    := ir_dict_sec.id;
+                    r_sec_circ.from_date := nvl( ir_dict_sec.placing_date, ir_dict_sec.issue_date );
+                    r_sec_circ.circ_mode := v_sec_circ_mode;
+                    r_sec_circ.user_id   := TR_GET_DICT.FUNDUSER_ID;
+                    r_sec_circ.till_date := TR_GET.INFINITY_DATE;
+                    TR_SDEF_SEC.INSERT_SEC_CIRC
+                        ( ior_sec_circ => r_sec_circ
+                        ) ;
+
+            end;
+
+        end;
+
+        declare
+            r_lomb_list  V_TR_DICT_LOMB_LIST%rowtype;
+            v_lomb_list  NUMBER := GET_FIELD_BOOL
+                                             ( i_type_field  => IF_LOMB_LIST
+                                             , i_id_data_set => i_id_data_set
+                                             , i_id_row      => i_id_row
+                                             ) ;
+
+        begin
+            r_lomb_list := TR_GET_DICT.LOMB_LIST_RECORD
+                               ( i_value_date => ir_dict_sec.issue_date
+                               , i_dict_id    => ir_dict_sec.id
+                               );
+
+            if  r_lomb_list.id is null
+            then
+                r_lomb_list.dict_id   := ir_dict_sec.id;
+                r_lomb_list.from_date := ir_dict_sec.issue_date;
+                r_lomb_list.till_date := TR_GET.INFINITY_DATE;
+                r_lomb_list.lomb_list := v_lomb_list;
+
+                TR_SDEF_DICT_LOMB_LIST.INSERT_LOMB_LIST( ior_lomblst => r_lomb_list );
+
+            else
+                r_lomb_list.lomb_list := v_lomb_list;
+                TR_SDEF_DICT_LOMB_LIST.UPDATE_LOMB_LIST( r_lomb_list );
+
+            end if;
+
+        end;
+
+        declare
+            r_grsec       V_TR_DICT_GROUP_RISK_SEC%rowtype;
+            v_group_risk  NUMBER := F_GET_SEC_GROUP_RISK
+                                        ( F_GET_FIELD_CHAR
+                                              ( TYPE_GROUP_RISK
+                                              )
+                                        );
+
+        begin
+            r_grsec := TR_GET_DICT.GROUP_RISK_SEC_RECORD
+                           ( i_value_date => ir_dict_sec.issue_date
+                           , i_sec_id     => ir_dict_sec.id
+                           ) ;
+
+            if  r_grsec.id is null
+            then
+                r_grsec.sec_id     := ir_dict_sec.id;
+                r_grsec.from_date  := ir_dict_sec.issue_date;
+                r_grsec.till_date  := TR_GET.INFINITY_DATE;
+                r_grsec.group_risk := v_group_risk;
+
+                TR_SDEF_DICT_GROUP_RISK_SEC.INSERT_GROUP_RISK_SEC( ior_grsec => r_grsec );
+
+            else
+                r_grsec.group_risk := v_group_risk;
+                TR_SDEF_DICT_GROUP_RISK_SEC.UPDATE_GROUP_RISK_SEC( r_grsec );
+
+            end if;
+
+        end;
+
+    END P_INS_OR_UPD_PROPERTIES;
+
+
+--------------------------------------------------------
+BEGIN
+    TR_STANDARD.PROC_REG('EXEC_SEC_ASSET');
+
+    P_GET_INIT
+        ( i_id_data_set   => i_id_data_set
+        , i_id_row        => i_id_row
+        , o_type_action   => v_type_action
+        , o_id_ext_system => v_id_ext_system
+        ) ;
+
+    if v_type_action = ACTION_INSERT
+    then
+        TR_STANDARD.PROC_REG('INSERT');
+
+        declare
+            r_dict_sec         V_TR_DICT_SEC%rowtype;
+            r_exists_dict_sec  V_TR_DICT_SEC%rowtype; -- сюда будем писать данные о заведенной бумаге
+            v_flag_update      BOOLEAN := false;
+
+        begin
+            r_dict_sec := P_TR_DICT_SEC.SHIELD_INS(i_id => 0);
+            P_FIELD_INIT(r_dict_sec);
+            TR_STANDARD.PROC_REG ('ISIN = '||r_dict_sec.code_isin);
+            -- надо проверить наличие бумаги сначала по коду регистрации, потом по ISIN
+            -- если бумага уже заведена, надо проверить на совпадение по полям, если какое-то из полей не совпадет - обновить бумагу
+            for rec
+            in (select *
+                  from V_TR_DICT_SEC
+                 where code_registry = r_dict_sec.code_registry
+                    or code_isin     = r_dict_sec.code_isin
+               )
+            loop
+                r_exists_dict_sec := rec;
+
+            end loop;
+
+            if not r_exists_dict_sec.sec is null --что-то нашли, надо проверить совпадение полей
+            then
+                if not ( (r_exists_dict_sec.sec = r_dict_sec.sec)
+                       or ( r_exists_dict_sec.sec is null and r_dict_sec.sec is null)
+                       )
+                or not ( (r_exists_dict_sec.sec_name = r_dict_sec.sec_name)
+                       or (r_exists_dict_sec.sec_name is null and r_dict_sec.sec_name is null)
+                       )
+                or not ( (r_exists_dict_sec.sec_sub_type_id = r_dict_sec.sec_sub_type_id)
+                       or (r_exists_dict_sec.sec_sub_type_id is null and r_dict_sec.sec_sub_type_id is null)
+                       )
+                or not ( (r_exists_dict_sec.issuer_id = r_dict_sec.issuer_id)
+                       or (r_exists_dict_sec.issuer_id is null and r_dict_sec.issuer_id is null)
+                       )
+                or not ( (r_exists_dict_sec.issue_date = r_dict_sec.issue_date)
+                       or (r_exists_dict_sec.issue_date is null and r_dict_sec.issue_date is null)
+                       )
+                or not ( (r_exists_dict_sec.placing_date = r_dict_sec.placing_date)
+                       or (r_exists_dict_sec.placing_date is null and r_dict_sec.placing_date is null)
+                       )
+                or not ( (r_exists_dict_sec.face_value_amount = r_dict_sec.face_value_amount)
+                       or (r_exists_dict_sec.face_value_amount is null and r_dict_sec.face_value_amount is null)
+                       )
+                or not ( (r_exists_dict_sec.face_value_ccy_id = r_dict_sec.face_value_ccy_id)
+                       or (r_exists_dict_sec.face_value_ccy_id is null and r_dict_sec.face_value_ccy_id is null)
+                       )
+                or not ( (r_exists_dict_sec.depositary_id = r_dict_sec.depositary_id)
+                       or (r_exists_dict_sec.depositary_id is null and r_dict_sec.depositary_id is null)
+                       )
+                or not ( (r_exists_dict_sec.aci_calc_mode = r_dict_sec.aci_calc_mode)
+                       or (r_exists_dict_sec.aci_calc_mode is null and r_dict_sec.aci_calc_mode is null)
+                       )
+                or not ( (r_exists_dict_sec.aci_accuracy = r_dict_sec.aci_accuracy)
+                       or (r_exists_dict_sec.aci_accuracy is null and r_dict_sec.aci_accuracy is null)
+                       )
+                or not ( (r_exists_dict_sec.maturity_date = r_dict_sec.maturity_date)
+                       or (r_exists_dict_sec.maturity_date is null and r_dict_sec.maturity_date is null)
+                       )
+                or not ( (r_exists_dict_sec.if_face_value_inflation_index = r_dict_sec.if_face_value_inflation_index)
+                       or (r_exists_dict_sec.if_face_value_inflation_index is null and r_dict_sec.if_face_value_inflation_index is null)
+                       )
+                or not ( (r_exists_dict_sec.country_id = r_dict_sec.country_id)
+                       or (r_exists_dict_sec.country_id is null and r_dict_sec.country_id is null)
+                       )
+                or not ( (r_exists_dict_sec.code_registry = r_dict_sec.code_registry)
+                       or (r_exists_dict_sec.code_registry is null and r_dict_sec.code_registry is null)
+                       )
+                or not ( (r_exists_dict_sec.sec = r_dict_sec.issue_number)
+                       or (r_exists_dict_sec.issue_number is null and r_dict_sec.issue_number is null)
+                       )
+                then
+                    v_flag_update := true;
+                    r_exists_dict_sec.sec                           := r_dict_sec.sec;
+                    r_exists_dict_sec.sec_name                      := r_dict_sec.sec_name;
+                    r_exists_dict_sec.sec_sub_type_id               := r_dict_sec.sec_sub_type_id;
+                    r_exists_dict_sec.issuer_id                     := r_dict_sec.issuer_id;
+                    r_exists_dict_sec.issue_date                    := r_dict_sec.issue_date;
+                    r_exists_dict_sec.placing_date                  := r_dict_sec.placing_date;
+                    r_exists_dict_sec.face_value_amount             := r_dict_sec.face_value_amount;
+                    r_exists_dict_sec.face_value_ccy_id             := r_dict_sec.face_value_ccy_id;
+                    r_exists_dict_sec.depositary_id                 := r_dict_sec.depositary_id;
+                    r_exists_dict_sec.aci_calc_mode                 := r_dict_sec.aci_calc_mode;
+                    r_exists_dict_sec.aci_accuracy                  := r_dict_sec.aci_accuracy;
+                    r_exists_dict_sec.maturity_date                 := r_dict_sec.maturity_date;
+                    r_exists_dict_sec.if_face_value_inflation_index := r_dict_sec.if_face_value_inflation_index;
+                    r_exists_dict_sec.country_id                    := r_dict_sec.country_id;
+                    r_exists_dict_sec.code_registry                 := r_dict_sec.code_registry;
+                    r_exists_dict_sec.issue_number                  := r_dict_sec.issue_number;
+
+                end if;
+
+            end if;
+
+            declare
+                v_qual_inv           NUMBER;
+                r_qual_inv           V_TR_DICT_SEC_QUAL_INV%ROWTYPE;
+
+            begin
+                if F_GET_FIELD_NUM( IF_QUAL_INVEST ) = CONST_QUAL_INV_TRUE
+                then
+                    v_qual_inv := TR_GET.BOOL_TRUE;
+
+                elsif F_GET_FIELD_NUM( IF_QUAL_INVEST ) = CONST_QUAL_INV_FALSE
+                then
+                     v_qual_inv := TR_GET.BOOL_FALSE;
+
+                end if;
+
+                if v_flag_update = true
+                then
+                    P_TR_DICT_SEC.DATA_UPD(ior_sec => r_exists_dict_sec);
+
+                    r_qual_inv := TR_SDEF_DICT_QUAL_INV.GET_QUAL_INV_RECORD
+                                      ( i_sec_id => r_exists_dict_sec.id
+                                      );
+                    if r_qual_inv.id is null
+                    then
+                        r_qual_inv.sec_id   := r_exists_dict_sec.id;
+                        r_qual_inv.qual_inv := v_qual_inv;
+
+                        TR_SDEF_DICT_QUAL_INV.INSERT_QUAL_INV
+                            ( ior_qualinv =>  r_qual_inv
+                            );
+
+                    else
+                        r_qual_inv.qual_inv := v_qual_inv;
+                        TR_SDEF_DICT_QUAL_INV.UPDATE_QUAL_INV
+                            ( ir_qualinv => r_qual_inv
+                            );
+
+                    end if;
+
+                else
+                    P_TR_DICT_SEC.DATA_INS(ior_sec => r_dict_sec);
+
+                    r_qual_inv.sec_id   := r_dict_sec.id;
+                    r_qual_inv.qual_inv := v_qual_inv;
+
+                    TR_SDEF_DICT_QUAL_INV.INSERT_QUAL_INV
+                        ( ior_qualinv =>  r_qual_inv
+                        );
+
+                end if;
+
+            end;
+
+            if r_exists_dict_sec.sec is null
+            then
+                P_INS_OR_UPD_PROPERTIES( ir_dict_sec => r_dict_sec );
+
+            else
+                P_INS_OR_UPD_PROPERTIES( ir_dict_sec => r_exists_dict_sec );
+
+            end if;
+
+            INSERT_EXT_CODE
+                ( i_dict_id    => r_dict_sec.id
+                , i_ext_code   => F_GET_FIELD_CHAR
+                                      ( ID_MASTER_SEC
+                                      )
+                , i_id_ext_sys => v_id_ext_system
+                ) ;
+
+        end;
+
+    elsif v_type_action = ACTION_UPDATE
+    then
+        declare
+            r_dict_sec  V_TR_DICT_SEC%rowtype;
+
+        begin
+            r_dict_sec  := F_GET_SEC_RECORD
+                                ( i_id_data_set   => i_id_data_set
+                                , i_id_row        => i_id_row
+                                , i_id_ext_system => v_id_ext_system
+                                ) ;
+
+            P_FIELD_INIT( r_dict_sec );
+            P_TR_DICT_SEC.DATA_UPD( ior_sec => r_dict_sec );
+
+            P_INS_OR_UPD_PROPERTIES( ir_dict_sec => r_dict_sec );
+
+        end;
+
+    elsif v_type_action = ACTION_DELETE
+    then
+        declare
+            r_dict_sec  V_TR_DICT_SEC%rowtype;
+            v_dict_id  NUMBER;
+
+        begin
+            r_dict_sec  := F_GET_SEC_RECORD
+                                ( i_id_data_set   => i_id_data_set
+                                , i_id_row        => i_id_row
+                                , i_id_ext_system => v_id_ext_system
+                                ) ;
+
+            P_TR_DICT_SEC.DATA_DEL
+                ( ior_sec   => r_dict_sec
+                , o_dict_id => v_dict_id
+                ) ;
+
+        end;
+
+    else
+        TR_STANDARD.PROC_REG('v_type_action = '||v_type_action);
+
+    end if;
+
+END EXEC_SEC_ASSET;
+
+
+--------------------------------------------------------
+--
+--------------------------------------------------------
+PROCEDURE EXEC_SEC_ASSET_CODE_EXCHANGE
+    ( i_id_data_set  VARCHAR2
+    , i_id_row       VARCHAR2
+    )
+IS
+    r_sec_exch           V_TR_DICT_SEC_EXCH%rowtype;
+    v_id_ext_system      VARCHAR2(20);
+    v_trade_place        NUMBER(10);
+    r_sec                V_TR_DICT_SEC%rowtype;
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_CHAR
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   VARCHAR2
+    IS
+    BEGIN
+        RETURN GET_FIELD_CHAR
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+BEGIN
+    TR_STANDARD.PROC_REG('EXEC_SEC_ASSET_CODE_EXCHANGE');
+
+    v_id_ext_system := GET_ID_4_EXT_SYSTEM
+                         ( F_GET_FIELD_CHAR( MASTER_SYSTEM )
+                         ) ;
+
+    v_trade_place   := GET_TRADE_PLACE_ID
+                         ( F_GET_FIELD_CHAR( ID_MASTER_EXCHANGE )
+                         , v_id_ext_system
+                         ) ;
+
+    TR_STANDARD.PROC_REG('v_trade_place = '||v_trade_place);
+
+    r_sec := F_GET_SEC_RECORD
+                ( i_id_data_set   => i_id_data_set
+                , i_id_row        => i_id_row
+                , i_id_ext_system => v_id_ext_system
+                ) ;
+
+    if v_trade_place = P_TF_GET.MASTER_EXCHANGE
+    then
+        TR_STANDARD.PROC_REG('MOEX');
+        r_sec.tf_code_micex := F_GET_FIELD_CHAR( CODE_SEC );
+
+        P_TR_DICT_SEC.DATA_UPD(ior_sec => r_sec);
+
+    else
+        TR_STANDARD.PROC_REG('SPB');
+        for rec
+         in ( select *
+                from V_TR_DICT_SEC_EXCH
+               where sec_id = r_sec.id
+                 and exch_id = v_trade_place
+            )
+        loop
+            r_sec_exch := rec;
+
+        end loop;
+
+        r_sec_exch.sec_id        := r_sec.id;
+        r_sec_exch.exch_id       := v_trade_place;
+        r_sec_exch.exch_sec_code := F_GET_FIELD_CHAR( CODE_SEC );
+        r_sec_exch.amount        := 1;
+
+        if r_sec_exch.id is null
+        then
+            TR_SDEF_SEC.INSERT_SEC_EXCH(ior_sec_exch => r_sec_exch);
+
+        else
+            TR_SDEF_SEC.UPDATE_SEC_EXCH(ir_sec_exch => r_sec_exch);
+
+        end if;
+
+    end if;
+
+END EXEC_SEC_ASSET_CODE_EXCHANGE;
+
+
+--------------------------------------------------------
+--
+--------------------------------------------------------
+PROCEDURE EXEC_SEC_ASSET_COUPON
+    ( i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+IS
+    v_type_action        VARCHAR2(50);
+    v_id_ext_system      VARCHAR2(20);
+
+    r_dict_sec_coupon    V_TR_DICT_SEC_COUPON%ROWTYPE;
+    r_dict_sec           V_TR_DICT_SEC%ROWTYPE;
+    v_value_date         DATE;
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_CHAR
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   VARCHAR2
+    IS
+    BEGIN
+        RETURN GET_FIELD_CHAR
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_NUM
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   NUMBER
+    IS
+    BEGIN
+        RETURN GET_FIELD_NUM
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_DATE
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   DATE
+    IS
+    BEGIN
+        RETURN GET_FIELD_DATE
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+BEGIN
+    TR_STANDARD.PROC_REG('EXEC_SEC_ASSET_COUPON');
+
+    P_GET_INIT
+        ( i_id_data_set   => i_id_data_set
+        , i_id_row        => i_id_row
+        , o_type_action   => v_type_action
+        , o_id_ext_system => v_id_ext_system
+        ) ;
+
+    r_dict_sec := F_GET_SEC_RECORD
+                        ( i_id_data_set   => i_id_data_set
+                        , i_id_row        => i_id_row
+                        , i_id_ext_system => v_id_ext_system
+                        ) ;
+
+    r_dict_sec_coupon.sec_id := r_dict_sec.id;
+
+    for rec
+      in ( select max( maturity_date )  value_date
+             from V_TR_DICT_SEC_COUPON
+            where sec_id        = r_dict_sec_coupon.sec_id
+              and maturity_date < r_dict_sec_coupon.maturity_date
+         )
+    loop
+        v_value_date := rec.value_date;
+
+    end loop;
+
+    v_value_date := nvl( v_value_date
+                       , r_dict_sec.aci_value_date
+                       ) ;
+
+    r_dict_sec_coupon.value_date := nvl( r_dict_sec_coupon.value_date, v_value_date );
+
+    if v_type_action = ACTION_INSERT
+    then
+        TR_STANDARD.PROC_REG('INSERT');
+        TR_STANDARD.PROC_REG('F_GET_FIELD_NUM ( RATE_COUPON         ) = '||F_GET_FIELD_NUM ( RATE_COUPON         ));
+        begin
+            r_dict_sec_coupon.maturity_date         := F_GET_FIELD_DATE( DATE_MATURITY       );
+            r_dict_sec_coupon.rate                  := F_GET_FIELD_NUM ( RATE_COUPON         );
+            r_dict_sec_coupon.amount                := F_GET_FIELD_NUM ( AMOUNT_COUPON       );
+            r_dict_sec_coupon.real_maturity_date    := F_GET_FIELD_DATE( DATE_PAYMENT        );
+            r_dict_sec_coupon.closure_register_date := F_GET_FIELD_DATE( DATE_REGISTER_CLOSE );
+
+            declare
+                v_type_payment VARCHAR2(255) := F_GET_FIELD_CHAR( TYPE_PAYMENT );
+
+            begin
+                if    v_type_payment = TYPE_PAYMENT_NOSTRO
+                then
+                    r_dict_sec_coupon.pay_mode := TR_GET.BOOL_TRUE;
+
+                elsif v_type_payment = TYPE_PAYMENT_EXCHANGE
+                then
+                    r_dict_sec_coupon.pay_mode := TR_GET.BOOL_FALSE;
+
+                else
+                    r_dict_sec_coupon.pay_mode := TR_GET.BOOL_NULL;
+
+                end if;
+
+            end;
+
+            declare
+                r_coupon4upd V_TR_DICT_SEC_COUPON%rowtype;
+
+            begin
+                for rec
+                 in ( select C.*
+                        from V_TR_DICT_SEC_COUPON C
+                       where C.sec_id        = r_dict_sec_coupon.sec_id
+                         and C.maturity_date = r_dict_sec_coupon.maturity_date
+                     )
+                loop
+                    r_coupon4upd := rec;
+
+                end loop;
+
+                if not r_coupon4upd.id is null
+                then
+                   -- r_dict_sec_coupon.id      := r_coupon$upd.id;--присвоить id существующего купонного периода
+                    begin
+                        r_coupon4upd.maturity_date         := r_dict_sec_coupon.maturity_date;
+                        r_coupon4upd.rate                  := r_dict_sec_coupon.rate;
+                        r_coupon4upd.amount                := r_dict_sec_coupon.amount;
+                        r_coupon4upd.real_maturity_date    := r_dict_sec_coupon.real_maturity_date;
+                        r_coupon4upd.closure_register_date := r_dict_sec_coupon.closure_register_date;
+                        r_coupon4upd.pay_mode              := r_dict_sec_coupon.pay_mode;
+
+                    end;
+
+                    P_TR_DICT_SEC_COUPON.DATA_UPD
+                        ( ior_sec_coupon      => r_coupon4upd
+                        , i_if_recalc_amount  => TR_GET.BOOL_FALSE
+                        , i_if_recalc_pl      => TR_GET.BOOL_FALSE
+                        , i_if_easy_mode      => TR_GET.BOOL_TRUE
+                        ) ;
+
+                else
+                    P_TR_DICT_SEC_COUPON.DATA_INS
+                        ( ior_sec_coupon      => r_dict_sec_coupon
+                        , i_if_recalc_amount  => TR_GET.BOOL_FALSE
+                        , i_if_recalc_pl      => TR_GET.BOOL_FALSE
+                        , i_if_easy_mode      => TR_GET.BOOL_TRUE
+                        ) ;
+
+                end if;
+
+            end;
+
+        end;
+
+    elsif v_type_action = ACTION_UPDATE
+    then
+        null;
+
+    elsif v_type_action = ACTION_DELETE
+    then
+        null;
+
+    else
+        TR_STANDARD.PROC_REG('v_type_action = '||v_type_action);
+
+    end if;
+
+    P_TR_TOOL_SEC_CLC_GRAPH.SEC_CLOSE
+        ( r_dict_sec_coupon.sec_id
+        , v_value_date
+        ) ;
+
+END EXEC_SEC_ASSET_COUPON;
+
+
+--------------------------------------------------------
+--
+--------------------------------------------------------
+PROCEDURE EXEC_SEC_ASSET_AMORTIZATION
+    ( i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+IS
+    v_type_action              VARCHAR2(50);
+    v_id_ext_system            VARCHAR2(20);
+    r_dict_sec_amortization    V_TR_DICT_SEC_AMORTIZATION%ROWTYPE;
+    r_dict_sec                 V_TR_DICT_SEC%ROWTYPE;
+    v_value_date               DATE;
+    v_maturity_date            DATE;
+    v_real_maturity_date       DATE;
+    v_is_exists                BOOLEAN := FALSE;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_CHAR
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   VARCHAR2
+    IS
+    BEGIN
+        RETURN GET_FIELD_CHAR
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_NUM
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   NUMBER
+    IS
+    BEGIN
+        RETURN GET_FIELD_NUM
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_DATE
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   DATE
+    IS
+    BEGIN
+        RETURN GET_FIELD_DATE
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+BEGIN
+    TR_STANDARD.PROC_REG('EXEC_SEC_ASSET_AMORTIZATION');
+
+    P_GET_INIT
+        ( i_id_data_set   => i_id_data_set
+        , i_id_row        => i_id_row
+        , o_type_action   => v_type_action
+        , o_id_ext_system => v_id_ext_system
+        ) ;
+
+    r_dict_sec  := F_GET_SEC_RECORD
+                        ( i_id_data_set   => i_id_data_set
+                        , i_id_row        => i_id_row
+                        , i_id_ext_system => v_id_ext_system
+                        ) ;
+
+    r_dict_sec_amortization.sec_id        := r_dict_sec.id;
+
+    v_maturity_date      := F_GET_FIELD_DATE( DATE_REDEMPTION );
+    v_real_maturity_date := F_GET_FIELD_DATE( DATE_PAYMENT    );
+
+    for rec
+     in ( select *
+            from V_TR_DICT_SEC_AMORTIZATION
+           where sec_id        = r_dict_sec.id
+             and maturity_date = v_maturity_date
+        )
+    loop
+        r_dict_sec_amortization := rec;
+        v_is_exists             := TRUE;
+        exit;
+
+    end loop;
+
+    if not v_real_maturity_date is null
+    then
+        r_dict_sec_amortization.real_maturity_date  := v_real_maturity_date;
+
+    end if;
+    r_dict_sec_amortization.maturity_date     := v_maturity_date;
+    r_dict_sec_amortization.amount            := F_GET_FIELD_NUM( AMOUNT_AMORTIZATION );
+    r_dict_sec_amortization.rate              := F_GET_FIELD_NUM( RATE_AMORTIZATION   );
+    r_dict_sec_amortization.value_mode        := CONST_COMM_VALUE_MODE_AMOUNT;
+
+    select nvl( max( maturity_date ), r_dict_sec.placing_date )  value_date
+      into v_value_date
+      from V_TR_DICT_SEC_AMORTIZATION
+     where sec_id        = r_dict_sec_amortization.sec_id
+       and maturity_date < r_dict_sec_amortization.maturity_date;
+
+    r_dict_sec_amortization.tf_face_value_during_period := TR_GET_DICT_SEC.FACE_VALUE_AMOUNT(r_dict_sec_amortization.sec_id, r_dict_sec_amortization.maturity_date - 1 );
+
+    P_TR_DICT_SEC_AMORTIZATION.LOCATE_USER_ERROR_AMORTIZATION
+            ( r_dict_sec_amortization
+            , r_dict_sec
+            , TR_GET.BOOL_TRUE
+            );
+
+    if v_type_action = ACTION_INSERT
+    then
+        TR_STANDARD.PROC_REG('INSERT');
+
+        if v_is_exists
+        then
+           -- r_dict_sec_coupon.id      := r_coupon$upd.id;--присвоить id существующего купонного периода
+
+            P_TR_DICT_SEC_AMORTIZATION.DATA_UPD
+                ( ior_sec_amortization   => r_dict_sec_amortization
+                , i_if_recalc_face_value => TR_GET.BOOL_TRUE
+                , i_if_recalc_coupon     => TR_GET.BOOL_FALSE
+                , i_if_recalc_graph      => TR_GET.BOOL_FALSE
+                , i_if_easy_mode         => TR_GET.BOOL_TRUE
+                );
+
+        else
+            P_TR_DICT_SEC_AMORTIZATION.DATA_INS( ior_sec_amortization   => r_dict_sec_amortization
+                , i_if_recalc_face_value => TR_GET.BOOL_TRUE
+                , i_if_recalc_coupon     => TR_GET.BOOL_FALSE
+                , i_if_recalc_graph      => TR_GET.BOOL_FALSE
+                , i_if_easy_mode         => TR_GET.BOOL_TRUE
+                );
+
+        end if;
+
+    elsif v_type_action = ACTION_UPDATE
+    then
+        TR_STANDARD.PROC_REG('UPDATE');
+        P_TR_DICT_SEC_AMORTIZATION.DATA_UPD
+                ( ior_sec_amortization   => r_dict_sec_amortization
+                , i_if_recalc_face_value => TR_GET.BOOL_TRUE
+                , i_if_recalc_coupon     => TR_GET.BOOL_FALSE
+                , i_if_recalc_graph      => TR_GET.BOOL_FALSE
+                , i_if_easy_mode         => TR_GET.BOOL_TRUE
+                );
+
+    elsif v_type_action = ACTION_DELETE
+    then
+        null;
+
+    else
+        TR_STANDARD.PROC_REG('v_type_action = '||TR_LIB_STRING.QUOTE( v_type_action ) );
+
+    end if;
+
+    P_TR_TOOL_SEC_CLC_GRAPH.SEC_CLOSE
+        ( r_dict_sec_amortization.sec_id
+        , v_value_date
+        );
+    P_TR_DICT_SEC_AMORTIZATION.SET_LAST_PAY_DATE( r_dict_sec_amortization.sec_id );
+    P_TR_REG_SEC_GRAPH.SET_MARKER_SEC( r_dict_sec_amortization.sec_id );
+
+END EXEC_SEC_ASSET_AMORTIZATION;
+
+
+--------------------------------------------------------
+--
+--------------------------------------------------------
+PROCEDURE EXEC_SEC_ASSET_OFFER
+    ( i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    )
+IS
+    v_type_action        VARCHAR2(50);
+    v_id_ext_system      VARCHAR2(20);
+    r_dict_sec_offer     V_TR_DICT_SEC_OFFER%ROWTYPE;
+    r_dict_sec           V_TR_DICT_SEC%ROWTYPE;
+    v_offer_date         DATE;
+    v_is_exists          BOOLEAN := FALSE;
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_CHAR
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   VARCHAR2
+    IS
+    BEGIN
+        RETURN GET_FIELD_CHAR
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_DATE
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   DATE
+    IS
+    BEGIN
+        RETURN GET_FIELD_DATE
+                 ( i_type_field  => i_type_field
+                 , i_id_data_set => i_id_data_set
+                 , i_id_row      => i_id_row
+                 ) ;
+
+    END;
+
+BEGIN
+    TR_STANDARD.PROC_REG('EXEC_SEC_ASSET_OFFER');
+
+    P_GET_INIT
+        ( i_id_data_set   => i_id_data_set
+        , i_id_row        => i_id_row
+        , o_type_action   => v_type_action
+        , o_id_ext_system => v_id_ext_system
+        ) ;
+
+    r_dict_sec := F_GET_SEC_RECORD
+                        ( i_id_data_set    => i_id_data_set
+                        , i_id_row         => i_id_row
+                        , i_id_ext_system  => v_id_ext_system
+                        ) ;
+
+    r_dict_sec_offer.sec_id        :=  r_dict_sec.id;
+
+    /*v_offer_date      := GET_FIELD_DATE
+                                          ( i_type_field  => DATE_OFFER
+                                          , i_id_data_set => i_id_data_set
+                                          , i_id_row      => i_id_row
+                                          ) ;*/
+    r_dict_sec_offer.offer_date := F_GET_FIELD_DATE( DATE_OFFER );
+    v_offer_date := r_dict_sec_offer.offer_date;
+
+    if r_dict_sec_offer.offer_date is null
+    then
+        TR_ERROR.SYS_RAISE_ERROR ( 'В поле '||TR_LIB_STRING.QUOTE( DATE_OFFER )||' не задана дата оферты.' );
+
+    end if;
+
+    for rec
+     in ( select *
+            from V_TR_DICT_SEC_OFFER
+           where sec_id        = r_dict_sec.id
+             and offer_date    = v_offer_date
+        )
+    loop
+        r_dict_sec_offer := rec;
+        v_is_exists      := TRUE;
+        exit;
+
+    end loop;
+
+    TR_STANDARD.PROC_REG('v_type_action = '||TR_LIB_STRING.QUOTE( v_type_action) );
+
+    if v_type_action = ACTION_INSERT
+    then
+        if v_is_exists
+        then
+            TR_SDEF_SEC_OFFER.UPDATE_REC(ior_sec_offer => r_dict_sec_offer, i_if_recalc_graph => TR_GET.BOOL_TRUE);
+
+        else
+            TR_SDEF_SEC_OFFER.INSERT_REC(ior_sec_offer => r_dict_sec_offer, i_if_recalc_graph => TR_GET.BOOL_TRUE);
+
+        end if;
+
+    elsif v_type_action = ACTION_UPDATE
+    then
+        TR_SDEF_SEC_OFFER.UPDATE_REC(ior_sec_offer => r_dict_sec_offer, i_if_recalc_graph => TR_GET.BOOL_TRUE);
+
+    elsif v_type_action = ACTION_DELETE
+    then
+        TR_SDEF_SEC_OFFER.DELETE_REC(ir_sec_offer => r_dict_sec_offer, i_if_recalc_graph => TR_GET.BOOL_TRUE);
+
+    else
+        TR_STANDARD.PROC_REG('v_type_action = '||v_type_action);
+
+    end if;
+
+END EXEC_SEC_ASSET_OFFER;
+
+
+--------------------------------------------------------
+--
+--------------------------------------------------------
+PROCEDURE EXEC_PARTY_DATA
+    ( i_id_data_set      VARCHAR2
+    , i_id_row           VARCHAR2
+    , i_if_loader_ru_data NUMBER     := TR_GET.BOOL_FALSE
+    )
+IS
+    r_party   V_TR_DICT_PARTY%ROWTYPE;
+
+    v_party_id           NUMBER;
+    v_type_action        VARCHAR2(50);
+    v_id_ext_system      VARCHAR2(20);
+    v_ext_code           VARCHAR2(50);
+    v_err                VARCHAR2(4000);
+    v_act2               NUMBER;
+    v_telephone          VARCHAR2(500);
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    FUNCTION F_GET_FIELD_CHAR
+        ( i_type_field   VARCHAR2
+        )
+    RETURN   VARCHAR2
+    IS
+    BEGIN
+        RETURN GET_FIELD_CHAR
+                   ( i_type_field  => i_type_field
+                   , i_id_data_set => i_id_data_set
+                   , i_id_row      => i_id_row
+                   ) ;
+
+    END;
+
+
+    --------------------------------------------------------
+    --
+    --------------------------------------------------------
+    PROCEDURE P_INIT_FIELDS
+                  ( ior_party in out V_TR_DICT_PARTY%ROWTYPE
+                  )
+    IS
+        v_inn           VARCHAR2(50);
+        v_tin           VARCHAR2(50);
+        v_state_reg_num VARCHAR2(50);
+
+    BEGIN
+        if i_if_loader_ru_data = TR_GET.BOOL_FALSE
+        then
+            ior_party.party        := F_GET_FIELD_CHAR( ID_MASTER_PARTY );
+
+        else
+            ior_party.party        := F_GET_FIELD_CHAR( PARTY_NAME           ); -- Сокращённое наименование эмитента (рус)
+
+        end if;
+
+        ior_party.party_name         := F_GET_FIELD_CHAR( PARTY_NAME_NRD     ); -- Сокращённое наименование эмитента (рус)
+        ior_party.party_name_long    := F_GET_FIELD_CHAR( PARTY_FULL_NAME    );
+        ior_party.english_party_name := F_GET_FIELD_CHAR( ENGLISH_PARTY_NAME ); -- Сокращённое наименование эмитента (англ)
+
+
+        v_inn                        := F_GET_FIELD_CHAR( INN                );
+        v_tin                        := F_GET_FIELD_CHAR( TIN                );
+        v_state_reg_num              := F_GET_FIELD_CHAR( STATE_REG_NUM      );
+        ior_party.inn                := coalesce ( v_inn
+                                                 , v_tin
+                                                 , v_state_reg_num
+                                                 ); -- Код ИНН
+
+        --r_party.okpo               := F_GET_FIELD_CHAR( OKPO               ); -- Код ОКПО
+        ior_party.legal_address      := F_GET_FIELD_CHAR( LEGAL_ADDRESS      ); -- Юридический адрес
+        ior_party.bic_local          := F_GET_FIELD_CHAR( LOCAL_BIC          ); -- БИК ЦБ
+        ior_party.bic_swift          := F_GET_FIELD_CHAR( BIC_SWIFT          ); -- SWIFT
+        ior_party.okved_code         := F_GET_FIELD_CHAR( OKVED              ); -- OKVED
+        ior_party.code_lei           := F_GET_FIELD_CHAR( LEI                ); -- LEI
+
+        ior_party.if_role_issuer     := TR_GET.BOOL_TRUE;
+
+    END;
+
+
+BEGIN
+    TR_STANDARD.PROC_REG ( 'i_if_loader_ru_data := '||i_if_loader_ru_data );
+    TR_STANDARD.PROC_REG ( 'v_ext_code := '||v_ext_code );
+    --TR_ERROR.SYS_RAISE_ERROR( 'Для отладки' );
+    P_GET_INIT
+        ( i_id_data_set   => i_id_data_set
+        , i_id_row        => i_id_row
+        , o_type_action   => v_type_action
+        , o_id_ext_system => v_id_ext_system
+        ) ;
+
+    if v_type_action = ACTION_INSERT
+    then
+        null;
+
+    else
+        TR_ERROR.SYS_RAISE_ERROR( 'Доступно только действие '||TR_LIB_STRING.QUOTE( ACTION_INSERT ) );
+
+    end if;
+    v_telephone := F_GET_FIELD_CHAR( TELEPHONE       );
+    v_ext_code  := F_GET_FIELD_CHAR( ID_MASTER_PARTY );
+
+    r_party := TR_GET_DICT.PARTY_RECORD
+                   ( GET_PARTY_ID_4EXT_CODE
+                        ( v_ext_code
+                        , v_id_ext_system
+                        )
+                   ) ;
+
+    P_INIT_FIELDS ( r_party );
+
+    TR_UTIL_XXI.MERGE_EMITENT_TO_XXI
+        ( i_country_code           => F_GET_FIELD_CHAR( COUNTRY_ID )
+        , i_party_name             => r_party.party_name
+        , i_party_full_name        => r_party.party_name_long
+        , i_english_party_name     => r_party.english_party_name
+        , i_ogrn                   => F_GET_FIELD_CHAR( OGRN )
+        , i_legal_address          => r_party.legal_address
+        , i_telephone              => v_telephone
+        , i_credit_cmp             => F_GET_FIELD_CHAR( CREDIT_CMP )
+        , i_is_bank_4_non_resident => F_GET_FIELD_CHAR( IS_BANK_4_NON_RESIDENT )
+        , i_sector                 => F_GET_FIELD_CHAR( SECTOR )
+        , i_inn                    => r_party.inn
+        , i_tin                    => null
+        , i_okved                  => r_party.okved_code
+        , i_okpo                   => F_GET_FIELD_CHAR( OKPO )
+        , i_kpp                    => F_GET_FIELD_CHAR( KPP )
+        , i_okato                  => F_GET_FIELD_CHAR( OKATO )
+        , o_err                    => v_err
+        , o_act2                   => v_act2
+        );
+    r_party.ref_id             := v_act2;
+    TR_STANDARD.PROC_REG ('err = '||v_err);
+
+    -- надо отследить случай, когда у нас эмитент был заведен во внешних субъектах, но из другого источника данных
+    -- в этом случае первая попытка запустить TR_GET_DICT.PARTY_RECORD ничего не вернет, т.к. не заполнена таблица связи
+    -- проверям наличие party по ref_if, полученному после выполнения merge_emitent_to_xxi
+    if v_act2 = -1 -- произошла ошибка во время обработки клиента в ядре XXI
+    then
+        TR_ERROR.SYS_RAISE_ERROR( 'Во время выполнения обратки клиента в ядре XXI произошла ошибка "'||v_err||'"' );
+
+    elsif v_act2 > 0 and r_party.id is null
+    then
+        v_party_id := TR_GET_BUFF.FIND_PARTY_ID( v_act2 );
+        if v_party_id is not null
+        then
+            r_party := TR_GET_DICT.PARTY_RECORD
+                           ( v_party_id
+                           );
+
+            P_INIT_FIELDS ( r_party );
+
+            INSERT_EXT_CODE
+                ( i_dict_id    => r_party.id
+                , i_ext_code   => v_ext_code
+                , i_id_ext_sys => v_id_ext_system
+                ) ;
+
+        end if;
+
+    end if;
+
+    -->> IXXI-664
+    if not r_party.id is null -- субъект уже заведен
+    then
+       TR_SDEF_DICT_PARTY.UPDATE_PARTY( r_party );
+
+    else   -- субъекта не было, добавляется как раньше
+--<< IXXI-664
+        TR_SDEF_DICT_PARTY.INSERT_PARTY( r_party );
+
+        INSERT_EXT_CODE
+            ( i_dict_id    => r_party.id
+            , i_ext_code   => v_ext_code
+            , i_id_ext_sys => v_id_ext_system
+            ) ;
+
+-->> IXXI-664
+    end if;
+--<< IXXI-664
+    declare
+        v_new_ogrn_id       VARCHAR2(255) := F_GET_FIELD_CHAR( OGRN );
+    begin
+        declare
+            r_party_ogrn        V_TR_DICT_PARTY_OGRN%rowtype;
+
+        begin
+            r_party_ogrn := TR_GET_DICT.PARTY_OGRN_RECORD( i_party_id => r_party.id );
+
+            if not r_party_ogrn.id is null -- огрн уже был
+            then
+                r_party_ogrn.ogrn_id   := v_new_ogrn_id;
+                r_party_ogrn.from_date := TR_RULE.GET_OPER_DATE;
+
+                TR_SDEF_DICT_PARTY_OGRN.UPDATE_PARTY_OGRN( r_party_ogrn );
+
+            else -- огрн еще не было
+
+                r_party_ogrn.party_id  := r_party.id;
+                r_party_ogrn.ogrn_id   := v_new_ogrn_id;
+                r_party_ogrn.from_date := TR_RULE.GET_OPER_DATE;
+
+                TR_SDEF_DICT_PARTY_OGRN.INSERT_PARTY_OGRN( r_party_ogrn );
+
+
+            end if;
+
+        end;
+
+    end;
+
+END EXEC_PARTY_DATA;
+
+
+--------------------------------------------------------
+--
+--------------------------------------------------------
+PROCEDURE EXEC
+    ( i_id_data_set       VARCHAR2 := '1'
+    , i_is_loader_ru_data NUMBER   := TR_GET.BOOL_FALSE
+    )
+IS
+    v_type_row_data      VARCHAR2(50) := TYPE_ROW_DATA;
+    v_if_not_found       BOOLEAN      := TRUE;
+    --v                    VARCHAR2( 255 ) := P_TF_GET.SESSIONID;
+
+BEGIN
+    TR_STANDARD.PROC_REG('EXEC');
+
+ -- TR_STANDARD.PROC_REG ( 'i_id_data_set   = ' || TR_LIB_STRING.QUOTE ( i_id_data_set   ) );
+ -- TR_STANDARD.PROC_REG ( 'v_type_row_data = ' || TR_LIB_STRING.QUOTE ( v_type_row_data ) );
+
+    for rec
+     in ( select id_row
+            from TR_API_DATA_SET
+           where -- audsid = P_TF_GET.SESSIONID and
+                 id_data_set = i_id_data_set
+             and type_field = v_type_row_data
+           order by  lpad(id_row,10,'0')
+        )
+    loop
+        v_if_not_found := FALSE;
+
+        TR_STANDARD.PROC_REG ( 'v_if_not_found := FALSE' );
+        TR_STANDARD.PROC_REG ( 'id_row = ' || rec.id_row );
+
+        declare
+            v_type_row_data VARCHAR2(50) := GET_FIELD_CHAR
+                                                ( i_type_field  => TYPE_ROW_DATA
+                                                , i_id_data_set => i_id_data_set
+                                                , i_id_row      => rec.id_row
+                                                ) ;
+        begin
+         -- TR_ERROR.SYS_RAISE_ERROR('TYPE_ROW_DATA = '||TR_LIB_STRING.QUOTE(v_type_row_data||'"');
+
+            if v_type_row_data = SEC_ASSET
+            then
+                EXEC_SEC_ASSET( i_id_data_set, rec.id_row);
+
+            elsif  v_type_row_data = SEC_ASSET_CODE_EXCHANGE
+            then
+                EXEC_SEC_ASSET_CODE_EXCHANGE( i_id_data_set, rec.id_row);
+
+            elsif  v_type_row_data = SEC_ASSET_COUPON
+            then
+                EXEC_SEC_ASSET_COUPON( i_id_data_set, rec.id_row);
+
+            elsif  v_type_row_data = SEC_ASSET_AMORTIZATION
+            then
+                EXEC_SEC_ASSET_AMORTIZATION( i_id_data_set, rec.id_row);
+
+            elsif  v_type_row_data = SEC_ASSET_OFFER
+            then
+                EXEC_SEC_ASSET_OFFER( i_id_data_set, rec.id_row);
+
+            elsif  v_type_row_data = PARTY_DATA
+            then
+                EXEC_PARTY_DATA( i_id_data_set, rec.id_row, i_is_loader_ru_data);
+
+            else
+                TR_ERROR.SYS_RAISE_ERROR('Данный тип TYPE_ROW_DATA '||TR_LIB_STRING.QUOTE( v_type_row_data )||' не поддерживается' );
+
+            end if;
+
+        end;
+
+    end loop;
+
+    if v_if_not_found
+    then
+        TR_ERROR.SYS_RAISE_ERROR
+            (    'Не найден TYPE_ROW_DATA. '
+              || 'i_id_data_set   = '   || TR_LIB_STRING.QUOTE ( i_id_data_set   )
+              || '. v_type_row_data = ' || TR_LIB_STRING.QUOTE ( v_type_row_data )
+            ) ;
+
+    end if;
+/*
+    delete TR_API_DATA_SET
+     where -- audsid = P_TF_GET.SESSIONID  and
+           id_data_set = i_id_data_set;*/
+
+END EXEC;
+
+
+--------------------------------------------------------------------------------
+--    EXEC
+--------------------------------------------------------------------------------
+PROCEDURE EXEC
+    ( i_id_data_set          VARCHAR2      := '1'
+    , o_if_ok                out BOOLEAN
+    , o_err_msg              out VARCHAR2
+    , i_is_loader_ru_data    NUMBER        := TR_GET.BOOL_FALSE
+    )
+IS
+BEGIN
+    EXEC
+        ( i_id_data_set           => i_id_data_set
+        , i_is_loader_ru_data     => i_is_loader_ru_data
+        ) ;
+
+    o_if_ok   := TRUE;
+
+EXCEPTION
+    WHEN OTHERS
+    THEN
+        o_if_ok   := FALSE;
+        o_err_msg := TR_ERROR.GET_ERROR_MESSAGE;
+
+END;
+
+
+--------------------------------------------------------------------------------
+--   EXEC
+--------------------------------------------------------------------------------
+PROCEDURE EXEC
+    ( i_id_data_set               VARCHAR2    	:= '1'
+    , o_if_ok                     out NUMBER
+    , o_err_msg                   out VARCHAR2
+    , i_is_loader_ru_data         NUMBER        := TR_GET.BOOL_FALSE
+    )
+IS
+    v_if_ok                       BOOLEAN;
+
+BEGIN
+    EXEC
+        ( i_id_data_set           => i_id_data_set
+        , o_if_ok                 => v_if_ok
+        , o_err_msg               => o_err_msg
+        , i_is_loader_ru_data     => i_is_loader_ru_data
+        ) ;
+
+    o_if_ok := TR_LIB_MATH.TO_BOOL ( v_if_ok );
+
+END EXEC;
+
+
+--------------------------------------------------------------------------------
+--    SET VALUE
+--------------------------------------------------------------------------------
+PROCEDURE SET_FIELD_VALUE
+    ( i_type_field       VARCHAR2
+    , i_value_field      VARCHAR2
+    , i_id_data_set      VARCHAR2 := '1'
+    , i_id_row           VARCHAR2 := '1'
+    )
+IS
+BEGIN
+    insert
+      into TR_API_DATA_SET
+      (
+      -- audsid,
+        id_data_set
+      , id_row
+      , type_field
+      , value_field
+      )
+    values
+      (
+      -- P_TF_GET.SESSIONID,
+        i_id_data_set
+      , i_id_row
+      , i_type_field
+      , i_value_field
+      );
+
+END SET_FIELD_VALUE;
+
+
+--------------------------------------------------------------------------------
+BEGIN
+    TR_ADMIN.SET_CONNECT_DEBUG
+        ( TR_ADMIN.MODULE_API
+        ) ;
+
+
+--------------------------------------------------------------------------------
+END TR_API;
