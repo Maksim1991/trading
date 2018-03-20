@@ -1,0 +1,13 @@
+diff --git a/test-03.sql b/test-03.sql
+new file mode 100644
+index 0000000..22eb729
+--- /dev/null
++++ b/test-03.sql
+@@ -0,0 +1,7 @@
++select *
++  from qdg q
++    where 1=1
++      --and q.idgnum = '123'
++      --and q.iqdgstatus = '3'
++      and q.CQDGDATE is not null
++;
