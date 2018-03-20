@@ -1,4 +1,0 @@
-select *
-from qdg q
-where 1=1
-	and q.iqdgnum = 1234567890
