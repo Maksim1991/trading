@@ -1,6 +1,6 @@
 --by michurin
 select *
 from qdg q
+	join qdp p where p.qdg = q.iqdgnum
 where 1=1
-	--and q.iqdgnum = 1234567890
 	and q.iqdgstatus = status
